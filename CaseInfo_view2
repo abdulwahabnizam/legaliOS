@@ -1,0 +1,814 @@
+//
+//  CaseInfo_View.swift
+//  LegalAtoms
+//
+//  Created by apple on 10/09/2022.
+//
+import Foundation
+import UIKit
+
+class CaseInfo_View : UIView {
+    @IBOutlet weak var progressView: UIView!
+    @IBOutlet weak var caseinfoTblView: UITableView!
+    var isSentGeneratedDocs: Bool? = false
+    var isSentPOSDocs: Bool? = false
+    var isSentTempForm: Bool? = false
+    var parentVC: CaseDetail?
+    var caseInfoViewModel: CaseinfoViewModel?
+    var item: Item?
+    var diagnositicsFormList : [FormListModel]?
+    var initialFormList : [FormListModel]?
+    var tempOrderFormList : [FormListModel]?
+    var posFormList : [FormListModel]?
+    var hearingFormList : [FormListModel]?
+    var filingDocumentModel : [DocumentModel]? = []
+    var tempDocumentModel : DocumentModel?
+    var hearingDocumentModel : DocumentModel?
+    var lepDocumentModel : [DocumentModel]?
+    var posDocumentModel : [DocumentModel]?
+    var tempDocHeight: CGFloat? = 64.0
+    var hearingDocHeight: CGFloat? = 64.0
+    var generatedDocHeight: CGFloat? = 250.0
+    var lawEnfGeneratedDocHeight: CGFloat? = 250.0
+    var initialFilingHeight: CGFloat? = 0.0
+    
+    var row: Int? = -1
+    
+    var isSentHearingDocsReq: Bool = false
+    var isSentPOSDocsReq: Bool = false
+    var isSentDiagnosticsReq: Bool = false
+    var isSentInitialFilingReq: Bool = false
+    var isSentTempOrderReq: Bool = false
+    var isSentHearingReq: Bool = false
+    var isSentPOSReq: Bool = false
+    var isSentLawEnfPacketReq: Bool = false
+    
+    
+    lazy var commentTextView: UITextView = {
+        // Create a TextView.
+        let textView: UITextView = UITextView()
+
+        // Round the corners.
+        textView.layer.masksToBounds = true
+
+        // Set the size of the roundness.
+        textView.layer.cornerRadius = 20.0
+
+        // Set the thickness of the border.
+        textView.layer.borderWidth = 1
+
+        // Set the border color to black.
+        textView.layer.borderColor = UIColor.systemGray.cgColor
+
+        // Set the font.
+        textView.font = UIFont.systemFont(ofSize: 16.0)
+
+        // Set font color.
+        textView.textColor = UIColor.black
+
+        // Set left justified.
+        textView.textAlignment = NSTextAlignment.left
+
+        // Automatically detect links, dates, etc. and convert them to links.
+        textView.dataDetectorTypes = UIDataDetectorTypes.all
+
+        // Set shadow darkness.
+        textView.layer.shadowOpacity = 0.5
+
+        // Make text uneditable.
+        textView.isEditable = true
+
+        return textView
+    }()
+    override func awakeFromNib() {
+        super.awakeFromNib()
+        
+        diagnositicsFormList = []
+        initialFormList = []
+        tempOrderFormList = []
+        hearingFormList = []
+        
+        isSentTempForm = false
+        isSentHearingDocsReq = false
+        isSentGeneratedDocs = false
+        isSentPOSDocsReq = false
+        isSentDiagnosticsReq = false
+        isSentInitialFilingReq = false
+        isSentTempOrderReq = false
+        isSentHearingReq = false
+        
+        caseinfoTblView.register(UINib(nibName: "CaseinfoStageCell", bundle: nil), forCellReuseIdentifier: "CaseInfoStageCell_d")
+        caseinfoTblView.register(UINib(nibName: "GenerateDocCell", bundle: nil), forCellReuseIdentifier: "GenerateDocCell")
+        caseinfoTblView.register(UINib(nibName: "GeneratedDocsCell", bundle: nil), forCellReuseIdentifier: "GeneratedDocsCell")
+        caseinfoTblView.register(UINib(nibName: "InitialFilingCell", bundle: nil), forCellReuseIdentifier: "InitialFilingCell")
+        caseinfoTblView.register(UINib(nibName: "TempOrderCell", bundle: nil), forCellReuseIdentifier: "TempOrderCell")
+        caseinfoTblView.register(UINib(nibName: "FilingCell", bundle: nil), forCellReuseIdentifier: "FilingCell")
+        caseinfoTblView.register(UINib(nibName: "TempGenerateDocs", bundle: nil), forCellReuseIdentifier: "TempGenerateDocsCell")
+        caseinfoTblView.register(UINib(nibName: "NotifyCell", bundle: nil), forCellReuseIdentifier: "NotifyCell")
+        caseinfoTblView.register(UINib(nibName: "HearingCell", bundle: nil), forCellReuseIdentifier: "HearingCell")
+        caseinfoTblView.register(UINib(nibName: "LawEnforcementCell", bundle: nil), forCellReuseIdentifier: "LawEnforcementCell")
+        caseinfoTblView.register(UINib(nibName: "NotifyLawEnforcementCell", bundle: nil), forCellReuseIdentifier: "NotifyLawEnforcementCell")
+        caseinfoTblView.register(UINib(nibName: "PendingServiceCell", bundle: nil), forCellReuseIdentifier: "PendingServiceCell")
+        caseinfoTblView.register(UINib(nibName: "HearingDocsCell", bundle: nil), forCellReuseIdentifier: "HearingDocsCell")
+        caseinfoTblView.register(UINib(nibName: "NotifyHearingDateCell", bundle: nil), forCellReuseIdentifier: "NotifyHearingDateCell")
+        caseinfoTblView.register(UINib(nibName: "NoProofOfServiceDocsCell", bundle: nil), forCellReuseIdentifier: "NoProofOfServiceDocsCell")
+        caseinfoTblView.register(UINib(nibName: "ProofOfServiceDocsCell", bundle: nil), forCellReuseIdentifier: "ProofOfServiceDocsCell")
+        //caseinfoTblView.register(UINib(nibName: "NotifyClientDateCell", bundle: nil), forCellReuseIdentifier: "NotifyClientDateCell")
+        caseinfoTblView.dataSource = self
+        caseinfoTblView.delegate = self
+        
+    }
+    var stageList : [WorkflowStageModel]?
+    func callToCaseInfoViewModel(){
+        caseInfoViewModel = CaseinfoViewModel()
+
+        self.caseInfoViewModel?.bindEmailZipToVC = {
+            if let emailZip = self.caseInfoViewModel?.emailZip {
+                self.parentVC?.ShowToast(message: emailZip, width: 320.0)
+            }
+        }
+        caseInfoViewModel?.bindCurrentStateViewModelToVC = {
+            self.progressView.isHidden = true
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                self.setStageView(currentState: workFM.current_state ?? "")
+                self.stageList = workFM.stageList
+                self.caseinfoTblView.reloadData()
+                
+                //Diagnostics Form list
+                if !self.isSentDiagnosticsReq {
+                    if workFM.stageList?.count ?? 0 > 1 {
+                    self.isSentDiagnosticsReq = true
+                        let form_id = workFM.stageList?[0].stageSectionsList?[0].form_list_ids?[0]
+                        self.caseInfoViewModel?.callToWorkflowFormListRequest(viewController: self.parentVC, workFlowType: "dvpo_wa", form_list_ids: form_id, client_id: self.item?.client_id, case_id: self.item?.case_id, type: form_id!)
+                    }
+                }
+                
+                //Filing Documents Resquest
+                self.caseInfoViewModel?.callToDocumentsRequest(viewController: self.parentVC, document_list_id: "dvpo_wa_case_info", client_id: self.item?.client_id, case_id: self.item?.case_id,skip_exhibits: false, type: "docs", stage_instance_id: workFM.stageList?[0].stageSectionsList?[0].instanceID ?? "")
+            }
+        }
+        self.progressView.isHidden = false
+        caseInfoViewModel?.callToWorkflowStageRequest(viewController: parentVC, client_id: item?.client_id, case_id: item?.case_id)
+        caseInfoViewModel?.bindFormListWithTypeModelToVC = {
+            if let flwtm = self.caseInfoViewModel?.formListWithTypeModel {
+                self.caseinfoTblView.reloadData()
+            }
+        }
+        caseInfoViewModel?.bindFormListWithTypeModelOkToVC = {
+            if let flwtm = self.caseInfoViewModel?.formListWithTypeModelOk {
+                //self.caseinfoTblView.reloadData()
+            }
+        }
+        caseInfoViewModel?.bindFormListWithTypeModelhearing_remindersToVC = {
+            if let flwtm = self.caseInfoViewModel?.formListWithTypeModelhearing_reminders {
+                //self.caseinfoTblView.reloadData()
+            }
+        }
+        caseInfoViewModel?.bindDocumentViewModelToVC = {
+            if let documentList_ = self.caseInfoViewModel?.documentList_ {
+                self.caseinfoTblView.reloadData()
+            }
+        }
+        
+//        caseInfoViewModel?.bindDFLMToVC = {
+//            for value in self.caseInfoViewModel?.dflm ?? [] {
+//                print(value.title)
+//            }
+//        }
+//        caseInfoViewModel?.bindInitialFilingToVC = {
+//            for value in self.caseInfoViewModel?.initialFilingData ?? [] {
+//                print(value.title)
+//            }
+//        }
+        //caseInfoViewModel?.handleResponseTestData()
+        //caseInfoViewModel?.handleInitialFilingResponseData()
+        
+    }
+    //Law POS Documents Resquest
+    func callPOSDocs(workFM: WorkFModel) {
+        self.caseInfoViewModel?.callToDocumentsRequest(viewController: self.parentVC, document_list_id: (workFM.stageList?[3].stageSectionsList?[5].document_list_id)!, client_id: self.item?.client_id, case_id: self.item?.case_id, skip_exhibits: true, type: "pos_doc", stage_instance_id: workFM.stageList?[3].stageSectionsList?[5].instanceID ?? "")
+    }
+    //Law Enforecement Packet Documents Resquest
+    func callLawEnforcementPacketDocs(workFM: WorkFModel) {
+        self.caseInfoViewModel?.callToDocumentsRequest(viewController: self.parentVC, document_list_id: (workFM.stageList?[3].stageSectionsList?[2].document_list_id)!, client_id: self.item?.client_id, case_id: self.item?.case_id, skip_exhibits: true, type: "lep", stage_instance_id: workFM.stageList?[3].stageSectionsList?[5].instanceID ?? "")
+    }
+    //Hearing Order Documents Resquest
+    func callHearingDocs(workFM: WorkFModel) {
+        self.caseInfoViewModel?.callToDocumentsRequest(viewController: self.parentVC, document_list_id: (workFM.stageList?[3].stageSectionsList?[1].document_list_id)!, client_id: self.item?.client_id, case_id: self.item?.case_id, skip_exhibits: true, type: "hearing", stage_instance_id: workFM.stageList?[3].stageSectionsList?[1].instanceID ?? "")
+    }
+    //Temp Documents Resquest
+    func callTempDocs(workFM: WorkFModel) {
+        self.caseInfoViewModel?.callToDocumentsRequest(viewController: self.parentVC, document_list_id: (workFM.stageList?[2].stageSectionsList?[1].document_list_id)!, client_id: self.item?.client_id, case_id: self.item?.case_id, skip_exhibits: true, type: "temp", stage_instance_id: workFM.stageList?[2].stageSectionsList?[1].instanceID ?? "")
+    }
+    //Initial Filing Request
+    func callInitialFiling(workFM: WorkFModel) {
+        if !self.isSentInitialFilingReq {
+            self.isSentInitialFilingReq = true
+            if workFM.stageList?[1].stageSectionsList?.count ?? 0 > 1 {
+                if(workFM.stageList?[1].stageSectionsList?.count ?? 0 > 2){
+                    if(workFM.stageList?[1].stageSectionsList?[2].form_list_ids?.count ?? 0 > 1){
+                        print("Initial form id:: \(workFM.stageList?[1].stageSectionsList?[2].form_list_ids?[1])")
+                        let form_id = workFM.stageList?[1].stageSectionsList?[2].form_list_ids?[1]
+                        self.caseInfoViewModel?.callToWorkflowFormListRequest(viewController: self.parentVC, workFlowType: "dvpo_wa", form_list_ids: form_id, client_id: self.item?.client_id, case_id: self.item?.case_id, type: form_id!)
+                    }
+                }
+            }
+        }
+    }
+    //Temp Order Request
+    func callPOS(workFM: WorkFModel) {
+        if !self.isSentPOSReq {
+            self.isSentPOSReq = true
+            if workFM.stageList?[3].stageSectionsList?.count ?? 0 > 1 {
+                
+                if workFM.stageList?[3].stageSectionsList?[5].form_list_ids!.count ?? 0
+                > 0 {
+                    print("Temporary Order form id:: \(workFM.stageList?[3].stageSectionsList?[5].form_list_ids?[0])")
+                    let form_list_id = workFM.stageList?[3].stageSectionsList?[5].form_list_ids?[0]
+                    self.caseInfoViewModel?.callToWorkflowFormListRequest(viewController: self.parentVC, workFlowType: "dvpo_wa", form_list_ids: form_list_id, client_id: self.item?.client_id, case_id: self.item?.case_id, type: form_list_id!)
+                }
+            }
+        }
+    }
+    //Temp Order Request
+    func callTempOrder(workFM: WorkFModel) {
+        if !self.isSentTempOrderReq {
+            self.isSentTempOrderReq = true
+            if workFM.stageList?[2].stageSectionsList?.count ?? 0 > 1 {
+                print("Temporary Order form id:: \(workFM.stageList?[2].stageSectionsList?[0].form_list_ids?[0])")
+                let form_id = workFM.stageList?[2].stageSectionsList?[0].form_list_ids?[0]
+                self.caseInfoViewModel?.callToWorkflowFormListRequest(viewController: self.parentVC, workFlowType: "dvpo_wa", form_list_ids: workFM.stageList?[2].stageSectionsList?[0].form_list_ids?[0], client_id: self.item?.client_id, case_id: self.item?.case_id, type: form_id!)
+            }
+        }
+    }
+    //Hearing Request
+    func callHearing(workFM: WorkFModel) {
+        if !self.isSentHearingReq {
+            self.isSentHearingReq = true
+            if workFM.stageList?[3].stageSectionsList?.count ?? 0 > 1 {
+                print("Hearing form id:: \(workFM.stageList?[3].stageSectionsList?[0].form_list_ids?[0])")
+                let form_id = workFM.stageList?[3].stageSectionsList?[0].form_list_ids?[0]
+                self.caseInfoViewModel?.callToWorkflowFormListRequest(viewController: self.parentVC, workFlowType: "dvpo_wa", form_list_ids: form_id, client_id: self.item?.client_id, case_id: self.item?.case_id, type: form_id!)
+            }
+        }
+    }
+    func setStageView(currentState: String) {
+        switch(currentState) {
+            case "diagnostics|dvpo_diagnostics":
+                row = 1
+                break
+            case "initial_filing|dvpo_wa-forms":
+                row = 2
+                break
+            case "initial_filing|dvpo_documents":
+                row = 3
+                break
+            case "initial_filing|filing":
+                row = 5
+                break
+            case "initial_filing|filing|rejected":
+                row = 5
+                break
+            case "initial_filing|filing|submitted":
+                row = 5
+            break
+            case "temp_order|temp_order_questionnaires":
+                row = 6
+                break
+            case "temp_order|temp_order_documents":
+                row = 7
+                break
+            case "temp_order|notify_temp_order":
+                row = 8
+                break
+            case "hearing|hearing_questionnaires":
+                row = 9
+                break
+            case "hearing|hearing_documents":
+                row = 11
+                break
+            case "hearing|notify_law_enforcement":
+                row = 13
+                break
+            case "hearing|notify_client_hearing_date":
+                row = 13
+                break
+            case "hearing|pos_questionnaires":
+                row = 14
+                break
+            case "hearing|notify_client_pos":
+                row = 15
+                break
+            default:
+                //row = 0
+                break
+        }
+    }
+}
+
+extension CaseInfo_View: UITableViewDataSource, UITableViewDelegate {
+    func numberOfSections(in tableView: UITableView) -> Int {
+        self.stageList?.count ?? 0 // Stages Height
+    }
+    func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
+        let header = view as! UITableViewHeaderFooterView
+        if let textlabel = header.textLabel {
+            textlabel.font = textlabel.font.withSize(24)
+        }
+    }
+    func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String?
+    {
+        let stageTitle = self.stageList?[section].title ?? "Title"
+        return stageTitle
+    }
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        self.stageList?[section].stageSectionsList?.count ?? 0
+    }
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let id = self.stageList?[indexPath.section].stageSectionsList?[indexPath.row].id
+        var value : Bool? = self.stageList?[indexPath.section].stageSectionsList?[indexPath.row].complete ?? false
+        
+        if (id == "dvpo_diagnostics" || id == "sapo_diagnostics") {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "CaseInfoStageCell_d") as! CaseInfoStageCell
+            cell.parentVC = self.parentVC
+            cell.caseInfoView = self
+            cell.caseInfoViewModel = self.caseInfoViewModel
+            var wfm : WorkFModel?
+            
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                cell.stageModel = workFM.stageList?[0].stageSectionsList?[0]
+                wfm = workFM
+            }
+            if let flwtm = self.caseInfoViewModel?.formListWithTypeModel {
+                if self.diagnositicsFormList?.count ?? 0 < 1 {
+                    if flwtm.type == "dvpo_wa_diagnostics" {
+                        self.diagnositicsFormList = flwtm.formList!
+                        cell.formList = self.diagnositicsFormList
+                        //flwtm.formList!
+                        cell.viewsSetting()
+                    }
+                    if wfm != nil {
+                        self.callInitialFiling(workFM: wfm!)
+                    }
+                }
+            }
+            return cell
+        }else if (id == "dvpo_wa-forms" || id == "sapo-forms") {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "InitialFilingCell") as! InitialFilingCell
+            cell.parentVC = self.parentVC
+            cell.caseInfoView = self
+            cell.caseInfoViewModel = self.caseInfoViewModel
+            var wfm : WorkFModel?
+            
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                //cell.initialfilingHeadingLbl.text = workFM.stageList?[1].title!
+                let list = workFM.stageList?[1].stageSectionsList!
+                for i in 0..<(list?.count ?? 0) {
+                    if(workFM.stageList?[1].stageSectionsList?.count ?? 0 > 4){
+                        cell.stageModel = workFM.stageList?[1].stageSectionsList?[5]
+                    }
+                    wfm = workFM
+                }
+            }
+            if let flwtm = self.caseInfoViewModel?.formListWithTypeModel {
+                if self.initialFormList?.count ?? 0 < 1 {
+                    if flwtm.type == "dvpo_wa_case_info" {
+                        
+                        self.initialFormList = flwtm.formList!
+                        cell.formList = flwtm.formList!
+                        initialFilingHeight = CGFloat(flwtm.formList!.count) * 85.0
+                        cell.formsTblV.reloadData()
+                        caseinfoTblView.reloadData()
+                        cell.viewsSetting()
+                    }
+                    if wfm != nil {
+                        self.callTempOrder(workFM: wfm!)
+                    }
+                }
+            }
+            return cell
+        }else if (id == "dvpo_documents" || id == "sapo_documents" /*&& row == 4*/) {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "GeneratedDocsCell") as! GeneratedDocsCell
+            
+            var wfm : WorkFModel?
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                if(workFM.stageList?[1].stageSectionsList?.count ?? 0 > 5){
+                    cell.stageModel = workFM.stageList?[1].stageSectionsList?[4]
+                    let done = workFM.stageList?[1].stageSectionsList?[4].done
+                    if(done == true) {
+                        if(isSentGeneratedDocs == false){
+                            isSentGeneratedDocs = true
+                            self.caseInfoViewModel?.callToDocumentsRequest(viewController: self.parentVC, document_list_id: "dvpo_wa_case_info", client_id: self.item?.client_id, case_id: self.item?.case_id,skip_exhibits: false, type: "gen_docs", stage_instance_id: workFM.stageList?[1].stageSectionsList?[4].instanceID ?? "")
+                        }
+                    }
+                }
+                
+                wfm = workFM
+            }
+            if let documentList_ = self.caseInfoViewModel?.documentList_ {
+                cell.parentVC = parentVC
+                cell.caseInfoViewModel = self.caseInfoViewModel
+                cell.item = self.item
+                cell.documentList_ = documentList_
+                
+                
+                if generatedDocHeight ?? 0 < 401 {
+                    let docCellsheight = documentList_.count * 64
+                    cell.docTblVHeightConst.constant = CGFloat(CGFloat(docCellsheight) + CGFloat(40.0))
+                    generatedDocHeight = (generatedDocHeight ?? 250) + CGFloat(docCellsheight)
+                }
+                cell.docsTblV.reloadData()
+                
+                if documentList_.count < 1 {
+                    return cell
+                }
+                
+                if filingDocumentModel?.count ?? 0 <= 0 {
+                    filingDocumentModel = documentList_
+                    cell.documentModel = filingDocumentModel?[0]
+                    cell.form1Lbl.text = self.filingDocumentModel?[0].form ?? "PO"
+                    cell.form2Lbl.text = self.filingDocumentModel?[1].form ?? "PO"
+                    cell.form3Lbl.text = self.filingDocumentModel?[2].form ?? "PO"
+                    cell.form4Lbl.text = self.filingDocumentModel?[3].form ?? "PO"
+                    
+                    cell.title1Lbl.text = self.filingDocumentModel?[0].title ?? "PO Detail"
+                    cell.title2Lbl.text = self.filingDocumentModel?[1].title ?? "PO Detail"
+                    cell.title3Lbl.text = self.filingDocumentModel?[2].title ?? "PO Detail"
+                    cell.title4Lbl.text = self.filingDocumentModel?[3].title ?? "PO Detail"
+                }
+            }
+            return cell
+        }else if (id == "dvpo_documents" || id == "sapo_documents" /*&& row == 3*/) {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "GenerateDocCell") as! GenerateDocCell
+            cell.parentVC = parentVC
+            cell.item = self.item
+            cell.caseInfoViewModel = self.caseInfoViewModel
+            
+            var wfm : WorkFModel?
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                if(workFM.stageList?[1].stageSectionsList?.count ?? 0 > 5){
+                    cell.stageModel = workFM.stageList?[1].stageSectionsList?[4]
+                    let done = workFM.stageList?[1].stageSectionsList?[4].done
+                    if(done == true) {
+                        if(isSentGeneratedDocs == false) {
+                            isSentGeneratedDocs = true
+                            self.caseInfoViewModel?.callToDocumentsRequest(viewController: self.parentVC, document_list_id: "dvpo_wa_case_info", client_id: self.item?.client_id, case_id: self.item?.case_id,skip_exhibits: false, type: "gen_docs", stage_instance_id: workFM.stageList?[1].stageSectionsList?[4].instanceID ?? "")
+                        }
+                    }
+                }
+                wfm = workFM
+            }
+            
+            if let documentList_ = self.caseInfoViewModel?.documentList_ {
+                cell.documentModel = documentList_[0]
+                
+                if documentList_.count > 0 {
+                    cell.generateDocLbl.isHidden = true
+                    cell.downloadZipBtn.isHidden = false
+                    cell.emailZipBtn.isHidden = false
+                    //cell.generateDocLbl.text = "Regenerate documents if you made changes to the questionnaires."
+                }else{
+                    cell.generateDocLbl.isHidden = false
+                    cell.downloadZipBtn.isHidden = true
+                    cell.emailZipBtn.isHidden = true
+                    //cell.generateDocLbl.text = "No documents generated from the questionnaires."
+                }
+            }
+            return cell
+        }else if (id == "filing") {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "FilingCell") as! FilingCell
+            cell.parentVC = parentVC
+            cell.item = self.item
+            
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                if(workFM.stageList?[1].stageSectionsList?.count ?? 0 > 5){
+                    let stageModel = workFM.stageList?[1].stageSectionsList?[5]
+                    
+                    if workFM.current_state == "initial_filing|filing|rejected" {
+                        cell.iSAcceptedLbl.text = "Rejected"
+                        cell.iSAcceptedLbl.textColor = .red
+                        cell.iSAcceptedLbl.isHidden = false
+                        cell.rejectSubmissionBtn.isEnabled = false
+                        cell.submissionReceivedBtn.isEnabled = false
+                    }else{
+                        if stageModel?.isAccepted == 1 {
+                            cell.iSAcceptedLbl.isHidden = false
+                            cell.iSAcceptedLbl.text = stageModel?.message
+                            cell.rejectSubmissionBtn.isEnabled = false
+                            cell.submissionReceivedBtn.isEnabled = false
+                        }else if stageModel?.isAccepted == 0 {
+                            cell.iSAcceptedLbl.text = "Rejected"
+                            cell.iSAcceptedLbl.textColor = .red
+                            cell.iSAcceptedLbl.isHidden = false
+                            cell.rejectSubmissionBtn.isEnabled = false
+                            cell.submissionReceivedBtn.isEnabled = false
+                        }else if stageModel?.isAccepted == -1 {
+                            cell.iSAcceptedLbl.isHidden = true
+                            cell.rejectSubmissionBtn.isEnabled = true
+                            cell.submissionReceivedBtn.isEnabled = true
+                        }
+                    }
+                }
+            }
+            return cell
+        }else if (id == "temp_order_questionnaires") {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "TempOrderCell") as! TempOrderCell
+            cell.parentVC = self.parentVC
+            var wfm : WorkFModel?
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                let stgModel = workFM.stageList?[2].stageSectionsList?[0]
+                cell.stageModel = stgModel
+                wfm = workFM
+                if !isSentTempForm! {
+                    if stgModel?.form_list_ids?[0] == "okanogan_dvpo_wa_temp_order" {
+                        isSentTempForm = true
+                        self.caseInfoViewModel?.callToWorkflowFormListRequest(viewController: self.parentVC, workFlowType: "dvpo_wa", form_list_ids: stgModel?.form_list_ids?[0], client_id: self.item?.client_id, case_id: self.item?.case_id, type: "okanogan_dvpo_wa_temp_order")
+                    }
+                }
+            }
+            if let flwtm = self.caseInfoViewModel?.formListWithTypeModelOk {
+                if self.tempOrderFormList?.count ?? 0 < 1 {
+                    self.tempOrderFormList = flwtm.formList!
+                    if flwtm.type == "okanogan_dvpo_wa_temp_order" {
+                        cell.formList = flwtm.formList!
+                        cell.viewsSetting()
+                    }
+                    if wfm != nil {
+                        self.callTempDocs(workFM: wfm!)
+                        self.callHearing(workFM: wfm!)
+                    }
+                }
+            }
+            return cell
+        }else if (id == "temp_order_documents") {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "TempGenerateDocsCell") as! TempGenerateDocsCell
+            cell.parentVC = parentVC
+            cell.caseInfoViewModel = self.caseInfoViewModel
+            cell.item = self.item
+            
+            var wfm : WorkFModel?
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                cell.stageModel = workFM.stageList?[2].stageSectionsList?[1]
+                wfm = workFM
+            }
+            if tempDocumentModel == nil {
+                if let documentList_ = self.caseInfoViewModel?.tempDocumentList_ {
+                    cell.documentList_ = documentList_
+                    if tempDocumentModel == nil {
+                        tempDocumentModel = documentList_[0]
+                    }
+                    cell.documentModel = tempDocumentModel
+                    
+                    if tempDocHeight ?? 0 < 65 {
+                        let docCellsheight = documentList_.count * 64
+                        cell.docTblVHeightConst.constant = CGFloat(docCellsheight) //CGFloat(CGFloat(docCellsheight) + CGFloat(40.0))
+                        tempDocHeight = CGFloat(docCellsheight) //(tempDocHeight ?? 64) + CGFloat(docCellsheight)
+                    }
+                    cell.docsTblV.reloadData()
+                    
+                    if documentList_.count > 0 {
+                        cell.noDocsGenerateLbl.isHidden = true
+                        cell.downloadZipTempBtn.isHidden = false
+                        cell.emailTempBtn.isHidden = false
+                        //cell.poTitleLbl.isHidden = false
+                        cell.tempDocStackView.isHidden = false
+                        //cell.poTitleLbl.text = tempDocumentModel?.title
+                        cell.poFormNumberLbl.text = tempDocumentModel?.form
+                        //cell.poFormNumberLbl.isHidden = false
+                        //cell.generateDocLbl.text = "Regenerate documents if you made changes to the questionnaires."
+                    }else{
+                        cell.poTitleLbl.isHidden = true
+                        cell.tempDocStackView.isHidden = true
+                        cell.poFormNumberLbl.isHidden = true
+                        cell.noDocsGenerateLbl.isHidden = false
+                        cell.downloadZipTempBtn.isHidden = true
+                        cell.emailTempBtn.isHidden = true
+                        //cell.generateDocLbl.text = "No documents generated from the questionnaires."
+                    }
+                }
+            }
+            
+            return cell
+        }else if (id == "notify_temp_order") {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "NotifyCell") as! NotifyCell
+            cell.item = self.item
+            cell.parentVC = self.parentVC
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                let value = workFM.stageList?[2].stageSectionsList?[2]
+                
+                if value?.id == "notify_temp_order" {
+                    cell.notifiedLbl.isHidden = false
+                    cell.notifiedDateLbl.isHidden = true
+                }
+            }
+            return cell
+        }else if (id == "hearing_questionnaires") {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "HearingCell") as! HearingCell
+            cell.parentVC = parentVC
+            cell.caseInfoViewModel = self.caseInfoViewModel
+            
+            var wfm : WorkFModel?
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                cell.stageModel = workFM.stageList?[3].stageSectionsList?[0]
+                wfm = workFM
+                if !isSentHearingDocsReq {
+                    isSentHearingDocsReq = true
+                    self.callHearingDocs(workFM: wfm!)
+                }
+            }
+            if let flwtm = self.caseInfoViewModel?.formListWithTypeModelhearing_reminders {
+                if self.hearingFormList?.count ?? 0 < 1 {
+                    if flwtm.type == "hearing_reminders" {
+                        self.hearingFormList = flwtm.formList!
+                        cell.formList = self.hearingFormList//flwtm.formList!
+                        cell.viewsSetting()
+                    }
+                    if wfm != nil {
+                        //self.callHearingDocs(workFM: wfm!)
+                        //self.callInitialFiling(workFM: wfm!)
+                    }
+                }
+            }
+            return cell
+        }else if (id == "hearing_documents") {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "HearingDocsCell") as! HearingDocsCell
+            cell.parentVC = parentVC
+            cell.item = self.item
+            cell.caseInfoViewModel = self.caseInfoViewModel
+            
+            var wfm : WorkFModel?
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                wfm = workFM
+                cell.stageModel = workFM.stageList?[3].stageSectionsList?[1]
+                if !isSentLawEnfPacketReq {
+                    isSentLawEnfPacketReq = true
+                    callLawEnforcementPacketDocs(workFM: wfm!)
+                }
+            }
+            
+//            if hearingDocumentModel == nil {
+                if let documentList_ = self.caseInfoViewModel?.hearingDocumentList_ {
+                    cell.documentList_ = documentList_
+                    if hearingDocumentModel == nil {
+                        hearingDocumentModel = documentList_[0]
+                    }
+                    cell.documentModel = hearingDocumentModel
+                    if hearingDocHeight ?? 0 < 65 {
+                        let docCellsheight = documentList_.count * 64
+                        cell.docTblVHeightConst.constant = CGFloat(docCellsheight) //CGFloat(CGFloat(docCellsheight) + CGFloat(40.0))
+                        hearingDocHeight = CGFloat(docCellsheight) //(tempDocHeight ?? 64) + CGFloat(docCellsheight)
+                    }
+                    cell.docsTblV.reloadData()
+                    if documentList_.count > 0 {
+                        cell.subtitleHearingDocs.isHidden = true
+                        //cell.hearingDocStackView.isHidden = false
+                        cell.formNumberLbl.text = documentList_[0].form ?? "Form"
+                        cell.formTitleLbl.text = documentList_[0].title ?? "Title"
+                        cell.downloadBtn.isHidden = false
+                        cell.emailBtn.isHidden = false
+                    }else{
+                        cell.subtitleHearingDocs.isHidden = true
+                        //cell.hearingDocStackView.isHidden = false
+                        cell.downloadBtn.isHidden = true
+                        cell.emailBtn.isHidden = true
+                    }
+                }
+//            }
+            return cell
+        }else if (id == "law_enforcement_packet") {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "LawEnforcementCell") as! LawEnforcementCell
+            cell.parentVC = self.parentVC
+            cell.item = self.item
+            cell.caseInfoViewModel = self.caseInfoViewModel
+            var wfm : WorkFModel?
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                wfm = workFM
+                cell.stageModel = workFM.stageList?[3].stageSectionsList?[2]
+            }
+            if lepDocumentModel == nil {
+                if let documentList_ = self.caseInfoViewModel?.lepDocumentList_ {
+                    cell.documentList_ = documentList_
+                    if lawEnfGeneratedDocHeight ?? 0 < 371 {
+                        let docCellsheight = documentList_.count * 64
+                        cell.docTblVHeightCont.constant = CGFloat(CGFloat(docCellsheight) + CGFloat(40.0))
+                        lawEnfGeneratedDocHeight = (lawEnfGeneratedDocHeight ?? 200.0) + CGFloat(docCellsheight)
+                    }
+                    cell.docsTblV.reloadData()
+                    
+                    if lepDocumentModel == nil {
+                        callPOS(workFM: wfm!)
+                        lepDocumentModel = documentList_
+                    }
+                    cell.po1Form.text = lepDocumentModel?[0].form
+                    cell.po2FormLbl.text = lepDocumentModel?[1].form
+                    cell.po3FormLbl.text = lepDocumentModel?[2].form
+                    cell.po4FormLbl.text = lepDocumentModel?[3].form
+                    cell.po5FormLbl.text = lepDocumentModel?[4].form
+                    
+                    cell.poTitleLbl.text = lepDocumentModel?[0].title
+                    cell.po2TitleLbl.text = lepDocumentModel?[1].title
+                    cell.po3TitleLbl.text = lepDocumentModel?[2].title
+                    cell.po4TitleLbl.text = lepDocumentModel?[3].title
+                    cell.po5TitleLbl.text = lepDocumentModel?[4].title
+                }
+            }
+            return cell
+        }else if (id == "notify_client_hearing_date") {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "NotifyHearingDateCell") as! NotifyHearingDateCell
+            cell.item = self.item
+            cell.parentVC = self.parentVC
+            return cell
+        }else if (id == "notify_law_enforcement") {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "NotifyLawEnforcementCell") as! NotifyLawEnforcementCell
+            cell.item = self.item
+            cell.parentVC = self.parentVC
+            return cell
+        }else if (id == "pos_documents"  && value!) {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "NoProofOfServiceDocsCell") as! NoProofOfServiceDocsCell
+            
+            cell.parentVC = self.parentVC
+            cell.item = self.item
+            cell.caseInfoViewModel = self.caseInfoViewModel
+            var wfm : WorkFModel?
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                wfm = workFM
+                cell.stageModel = workFM.stageList?[3].stageSectionsList?[5]
+            }
+            return cell
+        }else if (id == "pos_documents") {
+            let cell = caseinfoTblView.dequeueReusableCell(withIdentifier: "ProofOfServiceDocsCell") as! ProofOfServiceDocsCell
+            
+            cell.parentVC = self.parentVC
+            cell.item = self.item
+            cell.caseInfoViewModel = self.caseInfoViewModel
+            var wfm : WorkFModel?
+            if let workFM = self.caseInfoViewModel?.workFM_ {
+                wfm = workFM
+                cell.stageModel = workFM.stageList?[3].stageSectionsList?[5]
+                
+                if !self.isSentPOSReq {
+                    self.isSentPOSReq = true
+                    print("ProofOfServic document_list_id \((workFM.stageList?[3].stageSectionsList?[5].document_list_id)!)")
+                    callPOSDocs(workFM: wfm!)
+                }
+            }
+            if posDocumentModel == nil {
+                if let documentList_ = self.caseInfoViewModel?.posDocumentList_ {
+                    cell.parentVC = parentVC
+                    cell.caseInfoViewModel = self.caseInfoViewModel
+                    
+                    if posDocumentModel == nil {
+                        posDocumentModel = documentList_
+                    }
+                    cell.documentModel = posDocumentModel?[0]
+                    cell.poFormLbl.text = documentList_[0].form
+                    cell.poTitleLbl.text = documentList_[0].title
+                }
+            }
+            return cell
+        }else{
+            let cell = UITableViewCell()
+            return cell
+        }
+    }
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        //return 270.0
+        let id = self.stageList?[indexPath.section].stageSectionsList?[indexPath.row].id
+        var value : Bool? = self.stageList?[indexPath.section].stageSectionsList?[indexPath.row].complete ?? false
+        let height = 0.0
+        if let workFM = self.caseInfoViewModel?.workFM_ {
+            if (id == "dvpo_diagnostics"){
+                return 290.0
+            }else if (id == "dvpo_wa-forms") {
+                return initialFilingHeight ?? 310.0 < 350.0 ? 370.0 : initialFilingHeight!
+            }else if (id == "dvpo_documents"){
+                return (generatedDocHeight ?? 0) < 1 ? 450.0 : generatedDocHeight!
+            }else if (id == "filing"){
+                return 180.0
+            }else if (id == "temp_order_questionnaires"){
+                return 160.0
+            }else if (id == "temp_order_documents"){
+                return 380.0
+            }else if (id == "notify_temp_order"){
+                return 230.0
+            }else if (id == "hearing_questionnaires"){
+                return 160.0
+            }else if (id == "hearing_documents"){
+                return 250.0
+            }else if (id == "law_enforcement_packet"){
+                return (lawEnfGeneratedDocHeight ?? 0) < 1 ? 300.0 : lawEnfGeneratedDocHeight!//370.0
+            }else if (id == "notify_client_hearing_date"){
+                return 240.0
+            }else if (id == "notify_law_enforcement"){
+                return 240.0
+            }else if (id == "pos_documents"){
+                return 220.0//return row == 15 ? 0.0 : 170.0 // 120.0
+            }else if (indexPath.row == 14){
+                return 220.0
+            }
+            return height
+        }else{
+            return 0.0
+        }
+    }
+}
